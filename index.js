@@ -21,6 +21,8 @@ async function exec () {
     if (result) {
       const extendedConfig = Object.assign({}, config, result)
 
+			core.setOutput('id', result.id)
+
       fs.writeFileSync(configPath, YAML.stringify(extendedConfig))
 
       return
@@ -37,7 +39,11 @@ async function exec () {
 function parseArgs () {
   return {
     issue: core.getInput('issue'),
-    comment: core.getInput('comment')
+    comment: core.getInput('comment'),
+    type: core.getInput('type'),
+    panelComment: core.getInput('panelComment'),
+    update: core.getInput('update'),
+    attachment: core.getInput('attachment')
   }
 }
 

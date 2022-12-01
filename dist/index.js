@@ -4,30 +4,71 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /***/ 4582:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const Jira = __nccwpck_require__(5557)
+const Jira = __nccwpck_require__(5557);
 module.exports = class {
-  constructor ({ githubEvent, argv, config }) {
-    this.Jira = new Jira({
-      baseUrl: config.baseUrl,
-      token: config.token,
-      email: config.email,
-    })
+	constructor({ githubEvent, argv, config }) {
+		this.Jira = new Jira({
+			baseUrl: config.baseUrl,
+			token: config.token,
+			email: config.email,
+		});
 
-    this.config = config
-    this.argv = argv
-    this.githubEvent = githubEvent
-  }
+		this.config = config;
+		this.argv = argv;
+		this.githubEvent = githubEvent;
+	}
 
-  async execute () {
-    const issueId = this.argv.issue || this.config.issue || null
-    const { comment } = this.argv
+	async execute() {
+		const issueId = this.argv.issue || this.config.issue || null;
+		const { update, comment, type, panelComment, attachment } = this.argv;
 
-    console.log(`Adding comment to ${issueId}: \n${comment}`)
-    await this.Jira.addComment(issueId, { body: comment })
+		const panelTypes = [
+			{ type: "info", color: "#deebff" },
+			{ type: "note", color: "#eae6ff" },
+			{ type: "success", color: "#e3fcef" },
+			{ type: "warning", color: "#fffae6" },
+			{ type: "error", color: "#ffebe6" },
+		];
 
-    return {}
-  }
-}
+		const found = update && (await this.Jira.getComment(issueId, update));
+
+		const panelData =
+			panelComment && type
+				? "{panel:bgColor=" +
+				  panelTypes.filter((p) => p.type === type)[0].color +
+				  "}" +
+				  panelComment +
+				  "{panel}"
+				: "";
+		const attachmentData = attachment
+			? "!" + attachment + "|width=200,height=200!"
+			: "";
+		const commentData = comment ? comment : "";
+
+		if (found) {
+			console.log(`Updating comment ${update} on ${issueId}`);
+			const commentUpdated = await this.Jira.updateComment(
+				issueId,
+				update,
+				`{
+					"body": "${[panelData, attachmentData, commentData].join(' ')}"
+				}`
+			);
+			console.log({ id: commentUpdated.id });
+			return { id: commentUpdated.id };
+		} else {
+			console.log(`Adding comment to ${issueId}`);
+			const commentPosted = await this.Jira.addComment(
+				issueId,
+				`{
+					"body": "${[panelData, attachmentData, commentData].join(' ')}"
+				}`
+			);
+			console.log({ id: commentPosted.id });
+			return { id: commentPosted.id };
+		}
+	}
+};
 
 
 /***/ }),
@@ -48,11 +89,43 @@ class Jira {
     this.email = email
   }
 
+  async getComment (issueId, commentId) {
+    return this.fetch('getComment', {
+      pathname: `/rest/api/3/issue/${issueId}/comment/${commentId}`,
+    }, {
+      method: 'GET',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			}
+    })
+  }
+
   async addComment (issueId, data) {
     return this.fetch('addComment', {
       pathname: `/rest/api/2/issue/${issueId}/comment`,
     }, {
       method: 'POST',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
+      body: data,
+    })
+  }
+
+  async updateComment (issueId, commentId, data) {
+    return this.fetch('updateComment', {
+      pathname: `/rest/api/2/issue/${issueId}/comment/${commentId}`,
+    }, {
+      method: 'PUT',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
       body: data,
     })
   }
@@ -123,13 +196,13 @@ class Jira {
 
     // strong check for undefined
     // cause body variable can be 'false' boolean value
-    if (body && headers['Content-Type'] === 'application/json') {
-      body = JSON.stringify(body)
-    }
+    // if (body && headers['Content-Type'] === 'application/json') {
+    //   body = JSON.stringify(body)
+    // }
 
     const state = {
-      req: {
-        method,
+			req: {
+				method,
         headers,
         body,
         url,
@@ -144,7 +217,7 @@ class Jira {
         source: 'jira',
       }
 
-      delete state.req.headers
+			delete state.req.headers
 
       throw Object.assign(
         new Error('Jira API error'),
@@ -32482,6 +32555,8 @@ async function exec () {
     if (result) {
       const extendedConfig = Object.assign({}, config, result)
 
+			core.setOutput('id', result.id)
+
       fs.writeFileSync(configPath, YAML.stringify(extendedConfig))
 
       return
@@ -32498,7 +32573,11 @@ async function exec () {
 function parseArgs () {
   return {
     issue: core.getInput('issue'),
-    comment: core.getInput('comment')
+    comment: core.getInput('comment'),
+    type: core.getInput('type'),
+    panelComment: core.getInput('panelComment'),
+    update: core.getInput('update'),
+    attachment: core.getInput('attachment')
   }
 }
 

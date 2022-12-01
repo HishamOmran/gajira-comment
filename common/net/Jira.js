@@ -11,11 +11,43 @@ class Jira {
     this.email = email
   }
 
+  async getComment (issueId, commentId) {
+    return this.fetch('getComment', {
+      pathname: `/rest/api/3/issue/${issueId}/comment/${commentId}`,
+    }, {
+      method: 'GET',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			}
+    })
+  }
+
   async addComment (issueId, data) {
     return this.fetch('addComment', {
       pathname: `/rest/api/2/issue/${issueId}/comment`,
     }, {
       method: 'POST',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
+      body: data,
+    })
+  }
+
+  async updateComment (issueId, commentId, data) {
+    return this.fetch('updateComment', {
+      pathname: `/rest/api/2/issue/${issueId}/comment/${commentId}`,
+    }, {
+      method: 'PUT',
+			headers: {
+				'Authorization': `Basic ${Buffer.from(`${this.email}:${this.token}`).toString('base64')}`,
+				'Accept': 'application/json',
+				'Content-Type': 'application/json'
+			},
       body: data,
     })
   }
@@ -86,13 +118,13 @@ class Jira {
 
     // strong check for undefined
     // cause body variable can be 'false' boolean value
-    if (body && headers['Content-Type'] === 'application/json') {
-      body = JSON.stringify(body)
-    }
+    // if (body && headers['Content-Type'] === 'application/json') {
+    //   body = JSON.stringify(body)
+    // }
 
     const state = {
-      req: {
-        method,
+			req: {
+				method,
         headers,
         body,
         url,
@@ -107,7 +139,7 @@ class Jira {
         source: 'jira',
       }
 
-      delete state.req.headers
+			delete state.req.headers
 
       throw Object.assign(
         new Error('Jira API error'),

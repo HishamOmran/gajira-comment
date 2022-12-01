@@ -9,7 +9,22 @@ inputs:
     required: true
   comment:
     description: Comment
-    required: true
+    required: false
+  type:
+    description: Type of panel
+    required: false
+  panelComment:
+    description: Panel Comment
+    required: false
+  update:
+    description: Comment to update
+    required: false
+  attachment:
+    description: Attachment file name or URL of media to add to comment
+    required: false
+outputs:
+  id:
+    description: ID of the newly created comment
 runs:
   using: 'node16'
   main: './dist/index.js'
